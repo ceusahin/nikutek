@@ -1,0 +1,168 @@
+
+
+/* Logo Slider Animation */
+.logo-slider {
+  display: flex;
+  gap: 4rem;
+  animation: scroll 40s linear infinite;
+}
+
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(calc(-250px * 5));
+  }
+}
+
+.logo-slider:hover {
+  animation-play-state: paused;
+}
+
+@keyframes slide {
+  0% {
+    transform: translateX(0%);
+  }
+  100% { 
+    transform: translateX(-50%);
+  }
+}
+
+.slider-track {
+  display: flex;
+  width: max-content;
+  animation: slide 30s linear infinite;
+}
+
+/* Ana kaydırıcı alan */
+.slider-container {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Kayan track */
+.slider-track {
+  display: flex;
+  width: fit-content;
+  animation: scroll-left 30s linear infinite;
+}
+
+/* Tek tek referans kutuları */
+.slider-item {
+  flex-shrink: 0;
+  padding: 0 24px;
+}
+
+/* Kayma animasyonu */
+@keyframes scroll-left {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+
+@keyframes tilt {
+  0% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-10deg);
+  }
+  75% {
+    transform: rotate(10deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+.spin-slow {
+  animation: spin 15s linear infinite;
+}
+
+.tilt-slow {
+  animation: tilt 5s linear infinite;
+}
+
+
+.neon-border {
+  border: 6px solid transparent;
+  border-radius: 16px;
+  background: conic-gradient(#fdf001, black, #fdf001, black);
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  -webkit-mask-composite: destination-out;
+  mask-composite: exclude;
+  padding: 6px; /* border kalınlığı */
+  animation: borderFlow 3s linear infinite;
+}
+
+@keyframes borderFlow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+.neon-border-wrapper {
+  position: relative;
+  border-radius: 16px;
+  display: inline-block;
+}
+
+.neon-border-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  padding: 6px; /* border kalınlığı */
+  background: conic-gradient(#fdf001, black, #fdf001, black);
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  z-index: 1;
+  animation: borderFlow 3s linear infinite;
+}
+
+@keyframes borderFlow {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 100% 0%; }
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #9333ea;
+  border-radius: 10px;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #7c3aed;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #a855f7;
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #8b5cf6;
+}

@@ -1,0 +1,275 @@
+@config "../tailwind.config.js";
+@import "tailwindcss";
+
+@theme {
+  --color-scheme: light;
+}
+
+@theme .dark {
+  --color-scheme: dark;
+}
+
+body {
+  font-family: 'Montserrat', sans-serif;
+}
+
+/* Line clamp utilities */
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-4 {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Auto logout warning animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.3s ease-out;
+}
+
+/* Rich text editor içerikleri için genişlik sınırlaması */
+div[dangerouslySetInnerHTML] {
+  max-width: 100%;
+  word-break: normal; /* Kelimeleri bölme */
+  overflow-wrap: break-word; /* Sadece gerekirse uzun kelimeleri böl */
+  hyphens: none; /* Tire ile kelime bölmeyi kapat */
+}
+
+div[dangerouslySetInnerHTML] * {
+  max-width: 100%;
+  word-break: normal; /* Kelimeleri bölme */
+  overflow-wrap: break-word; /* Sadece gerekirse uzun kelimeleri böl */
+  hyphens: none; /* Tire ile kelime bölmeyi kapat */
+}
+
+/* Rich text editor içerikleri için paragraf ve tipografi düzeni */
+div[dangerouslySetInnerHTML] p {
+  margin-bottom: 0;
+  margin-top: 0;
+  line-height: 1.7;
+  word-break: normal; /* Kelimeleri bölme */
+  overflow-wrap: break-word; /* Sadece gerekirse uzun kelimeleri böl */
+  hyphens: none; /* Tire ile kelime bölmeyi kapat */
+  display: block !important; /* Paragraf olarak göster */
+  text-align: left; /* Sol hizalama */
+}
+
+div[dangerouslySetInnerHTML] p:first-child {
+  margin-top: 0;
+}
+
+div[dangerouslySetInnerHTML] p:last-child {
+  margin-bottom: 0;
+}
+
+/* Boş olmayan paragraflar için minimum yükseklik */
+div[dangerouslySetInnerHTML] p:not(:empty) {
+  min-height: 1.5em;
+}
+
+/* Satır sonları için */
+div[dangerouslySetInnerHTML] br {
+  line-height: 1.6;
+}
+
+/* Bold ve strong stilleri */
+div[dangerouslySetInnerHTML] strong,
+div[dangerouslySetInnerHTML] b {
+  font-weight: 600;
+}
+
+/* İtalik stilleri */
+div[dangerouslySetInnerHTML] em,
+div[dangerouslySetInnerHTML] i {
+  font-style: italic;
+}
+
+/* Boş paragraflar için - Enter ile oluşturulan boş satırlar */
+div[dangerouslySetInnerHTML] p:empty {
+  margin-bottom: 1em !important;
+  margin-top: 0;
+  min-height: 1em !important;
+  display: block !important;
+}
+
+/* Liste stilleri */
+div[dangerouslySetInnerHTML] ul,
+div[dangerouslySetInnerHTML] ol {
+  margin-bottom: 1rem !important;
+  margin-top: 1rem !important;
+  padding-left: 2.5rem !important;
+  line-height: 1.6;
+  list-style-position: outside !important;
+  display: block !important;
+  list-style: disc outside none !important;
+}
+
+div[dangerouslySetInnerHTML] ul:first-child,
+div[dangerouslySetInnerHTML] ol:first-child {
+  margin-top: 0;
+}
+
+div[dangerouslySetInnerHTML] ul {
+  list-style-type: disc !important;
+  list-style: disc outside none !important;
+}
+
+div[dangerouslySetInnerHTML] ol {
+  list-style-type: decimal !important;
+  list-style: decimal outside none !important;
+}
+
+div[dangerouslySetInnerHTML] li {
+  margin-bottom: 0.5rem !important;
+  line-height: 1.6;
+  display: list-item !important;
+  list-style-position: outside !important;
+  padding-left: 1.5rem !important;
+  position: relative;
+}
+
+/* Madde işaretlerinin görünmesi için - manuel ekleme */
+div[dangerouslySetInnerHTML] ul li {
+  list-style-type: disc !important;
+}
+
+div[dangerouslySetInnerHTML] ul li::before {
+  content: "•" !important;
+  color: currentColor !important;
+  font-weight: bold !important;
+  display: inline-block !important;
+  width: 1em !important;
+  margin-left: -1.5rem !important;
+  margin-right: 0.5em !important;
+  position: absolute !important;
+  left: 0 !important;
+}
+
+/* Numaralı liste için */
+div[dangerouslySetInnerHTML] ol {
+  counter-reset: list-item-counter;
+}
+
+div[dangerouslySetInnerHTML] ol li {
+  list-style-type: decimal !important;
+  counter-increment: list-item-counter;
+}
+
+div[dangerouslySetInnerHTML] ol li::before {
+  content: counter(list-item-counter) "." !important;
+  color: currentColor !important;
+  display: inline-block !important;
+  width: 1.5em !important;
+  margin-left: -1.5rem !important;
+  margin-right: 0.5em !important;
+  position: absolute !important;
+  left: 0 !important;
+  text-align: right !important;
+}
+
+div[dangerouslySetInnerHTML] li:last-child {
+  margin-bottom: 0;
+}
+
+/* Liste içindeki paragraflar - inline olarak göster */
+div[dangerouslySetInnerHTML] li p {
+  margin-bottom: 0;
+  margin-top: 0;
+  display: inline;
+}
+
+div[dangerouslySetInnerHTML] li p:first-child {
+  margin-top: 0;
+}
+
+div[dangerouslySetInnerHTML] li p:last-child {
+  margin-bottom: 0;
+}
+
+/* Liste içindeki metin - düzgün görünsün */
+div[dangerouslySetInnerHTML] li {
+  word-break: normal;
+  overflow-wrap: break-word;
+  hyphens: none;
+}
+
+/* Başlık stilleri */
+div[dangerouslySetInnerHTML] h1,
+div[dangerouslySetInnerHTML] h2,
+div[dangerouslySetInnerHTML] h3,
+div[dangerouslySetInnerHTML] h4,
+div[dangerouslySetInnerHTML] h5,
+div[dangerouslySetInnerHTML] h6 {
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+div[dangerouslySetInnerHTML] h1:first-child,
+div[dangerouslySetInnerHTML] h2:first-child,
+div[dangerouslySetInnerHTML] h3:first-child,
+div[dangerouslySetInnerHTML] h4:first-child,
+div[dangerouslySetInnerHTML] h5:first-child,
+div[dangerouslySetInnerHTML] h6:first-child {
+  margin-top: 0;
+}
+
+/* Metin stilleri */
+div[dangerouslySetInnerHTML] strong,
+div[dangerouslySetInnerHTML] b {
+  font-weight: 600;
+}
+
+div[dangerouslySetInnerHTML] em,
+div[dangerouslySetInnerHTML] i {
+  font-style: italic;
+}
+
+/* Satır sonları için */
+div[dangerouslySetInnerHTML] br {
+  line-height: 1.6;
+}
+
+/* Quill editor'den gelen özel class'lar */
+div[dangerouslySetInnerHTML] .ql-align-center {
+  text-align: center;
+}
+
+div[dangerouslySetInnerHTML] .ql-align-right {
+  text-align: right;
+}
+
+div[dangerouslySetInnerHTML] .ql-align-justify {
+  text-align: justify;
+}
