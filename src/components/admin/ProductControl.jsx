@@ -18,6 +18,7 @@ import {
   X,
   Eye,
   EyeOff,
+  Loader2,
 } from "lucide-react";
 
 // ----------------- MAIN COMPONENT -----------------
@@ -46,6 +47,8 @@ export default function ProductControl() {
   const [searchTerm, setSearchTerm] = useState("");
   const [childModalOpen, setChildModalOpen] = useState(false);
   const [editingChild, setEditingChild] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [deletingImage, setDeletingImage] = useState(false);
 
   useEffect(() => {
     loadProducts();
@@ -799,16 +802,59 @@ export default function ProductControl() {
 
   const handleUpload = async (file, onDone) => {
     if (!file) return;
+    
+    // Dosya boyutu kontrolü (50MB limit)
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    if (file.size > maxSize) {
+      setError(`Dosya boyutu çok büyük! Maksimum dosya boyutu: 50MB. Seçilen dosya: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+      return;
+    }
+
     const fd = new FormData();
     fd.append("file", file);
+    setUploadingImage(true);
     try {
       const res = await axiosInstance.post("/products/upload", fd, {
         headers: { "Content-Type": "multipart/form-data" },
+        timeout: 300000, // 5 dakika timeout (büyük dosyalar için)
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const percentCompleted = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
+            console.log(`Yükleme ilerlemesi: ${percentCompleted}%`);
+          }
+        },
       });
       onDone(res.data);
     } catch (e) {
-      console.error(e);
-      setError("Dosya yüklenirken hata oluştu");
+      console.error("Yükleme hatası detayları:", {
+        message: e.message,
+        code: e.code,
+        status: e.response?.status,
+        statusText: e.response?.statusText,
+        data: e.response?.data,
+        config: e.config,
+      });
+      
+      if (e.code === "ECONNABORTED" || e.message.includes("timeout")) {
+        setError("Dosya yükleme zaman aşımına uğradı. Lütfen daha küçük bir dosya deneyin veya tekrar deneyin.");
+      } else if (e.code === "ERR_NETWORK" || e.response?.status === 0) {
+        setError("Ağ hatası oluştu. İnternet bağlantınızı kontrol edin ve tekrar deneyin. Sunucuya bağlanılamıyor olabilir.");
+      } else if (e.response?.status === 500) {
+        const errorMsg = e.response?.data?.message || e.response?.data?.error || "Sunucu hatası";
+        setError(`Sunucu hatası (500): ${errorMsg}. Dosya boyutu çok büyük olabilir veya sunucu geçici olarak kullanılamıyor. Lütfen daha küçük bir dosya deneyin veya daha sonra tekrar deneyin.`);
+      } else if (e.response?.status === 413) {
+        setError("Dosya boyutu çok büyük! Lütfen daha küçük bir dosya seçin.");
+      } else if (e.response?.status >= 400 && e.response?.status < 500) {
+        setError(`İstek hatası (${e.response?.status}): ${e.response?.data?.message || e.message}`);
+      } else {
+        setError(`Dosya yüklenirken hata oluştu: ${e.response?.data?.message || e.response?.data?.error || e.message || "Bilinmeyen hata"}`);
+      }
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -1723,35 +1769,62 @@ export default function ProductControl() {
                         />
                         <div className="absolute inset-0  bg-opacity-0 group-hover:bg-opacity-30 transition-all duration-200 rounded-lg flex items-center justify-center">
                           <button
-                            onClick={() => updateField("imageUrl", "")}
-                            className="opacity-0 group-hover:opacity-100 bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-all"
+                            onClick={async () => {
+                              setDeletingImage(true);
+                              try {
+                                updateField("imageUrl", "");
+                              } finally {
+                                setDeletingImage(false);
+                              }
+                            }}
+                            disabled={deletingImage}
+                            className="opacity-0 group-hover:opacity-100 bg-red-500 hover:bg-red-600 disabled:bg-red-400 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-all flex items-center gap-2"
                           >
-                            Görseli Sil
+                            {deletingImage ? (
+                              <>
+                                <Loader2 className="animate-spin" size={14} />
+                                Siliniyor...
+                              </>
+                            ) : (
+                              "Görseli Sil"
+                            )}
                           </button>
                         </div>
                       </div>
                     ) : (
                       <div className="w-full h-48 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
-                        <ImageIcon className="w-12 h-12 text-gray-400 mb-3" />
-                        <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">
-                          Ürün görseli yok
-                        </p>
-                        <label className="cursor-pointer bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
-                          Görsel Yükle
-                          <input
-                            type="file"
-                            className="hidden"
-                            accept="image/*"
-                            onChange={async (e) =>
-                              await handleUpload(e.target.files[0], (url) =>
-                                updateField("imageUrl", url)
-                              )
-                            }
-                          />
-                        </label>
+                        {uploadingImage ? (
+                          <>
+                            <Loader2 className="animate-spin text-blue-500 mb-3" size={32} />
+                            <p className="text-gray-500 dark:text-gray-400 text-sm">
+                              Yükleniyor...
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <ImageIcon className="w-12 h-12 text-gray-400 mb-3" />
+                            <p className="text-gray-500 dark:text-gray-400 text-sm mb-3">
+                              Ürün görseli yok
+                            </p>
+                            <label className="cursor-pointer bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                              Görsel Yükle
+                              <input
+                                type="file"
+                                className="hidden"
+                                accept="image/*"
+                                disabled={uploadingImage}
+                                onChange={async (e) =>
+                                  await handleUpload(e.target.files[0], (url) =>
+                                    updateField("imageUrl", url)
+                                  )
+                                }
+                              />
+                            </label>
+                          </>
+                        )}
                       </div>
                     )}
-                    {!form.imageUrl && (
+                    {!form.imageUrl && !uploadingImage && (
                       <label className="cursor-pointer bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors inline-flex items-center gap-2">
                         <ImageIcon size={16} />
                         Görsel Seç
@@ -1759,6 +1832,7 @@ export default function ProductControl() {
                           type="file"
                           className="hidden"
                           accept="image/*"
+                          disabled={uploadingImage}
                           onChange={async (e) =>
                             await handleUpload(e.target.files[0], (url) =>
                               updateField("imageUrl", url)
@@ -2345,6 +2419,9 @@ function CatalogsTab({ catalogs = [], update, handleUpload }) {
       fileUrl: c.fileUrl || c.file_url || c.url || "",
     }))
   );
+  const [uploadingCatalog, setUploadingCatalog] = useState(false);
+  const [deletingCatalogIndex, setDeletingCatalogIndex] = useState(null);
+
   useEffect(
     () =>
       setList(
@@ -2358,22 +2435,32 @@ function CatalogsTab({ catalogs = [], update, handleUpload }) {
 
   const addCatalog = async (file) => {
     if (!file) return;
-    await handleUpload(file, (url) => {
-      const newCatalog = { name: file.name, fileUrl: url };
-      const updated = [...list, newCatalog];
-      setList(updated);
-      update(updated);
-    });
+    setUploadingCatalog(true);
+    try {
+      await handleUpload(file, (url) => {
+        const newCatalog = { name: file.name, fileUrl: url };
+        const updated = [...list, newCatalog];
+        setList(updated);
+        update(updated);
+      });
+    } finally {
+      setUploadingCatalog(false);
+    }
   };
   const updateCatalogName = (index, name) => {
     const updated = list.map((c, i) => (i === index ? { ...c, name } : c));
     setList(updated);
     update(updated);
   };
-  const removeCatalog = (index) => {
-    const updated = list.filter((_, i) => i !== index);
-    setList(updated);
-    update(updated);
+  const removeCatalog = async (index) => {
+    setDeletingCatalogIndex(index);
+    try {
+      const updated = list.filter((_, i) => i !== index);
+      setList(updated);
+      update(updated);
+    } finally {
+      setDeletingCatalogIndex(null);
+    }
   };
 
   return (
@@ -2442,10 +2529,20 @@ function CatalogsTab({ catalogs = [], update, handleUpload }) {
                 </div>
                 <button
                   onClick={() => removeCatalog(i)}
-                  className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex-shrink-0"
+                  disabled={deletingCatalogIndex === i}
+                  className="flex items-center gap-1 bg-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex-shrink-0"
                 >
-                  <Trash2 size={14} />
-                  Sil
+                  {deletingCatalogIndex === i ? (
+                    <>
+                      <Loader2 className="animate-spin" size={14} />
+                      Siliniyor...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={14} />
+                      Sil
+                    </>
+                  )}
                 </button>
               </div>
               <div>
@@ -2464,24 +2561,34 @@ function CatalogsTab({ catalogs = [], update, handleUpload }) {
           ))}
         </div>
       )}
-      <label className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white px-4 py-3 rounded-lg text-sm font-medium transition-colors cursor-pointer">
-        <svg
-          className="w-4 h-4"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-          />
-        </svg>
-        Katalog Yükle
+      <label className={`w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 disabled:bg-green-400 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg text-sm font-medium transition-colors ${uploadingCatalog ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+        {uploadingCatalog ? (
+          <>
+            <Loader2 className="animate-spin" size={16} />
+            Yükleniyor...
+          </>
+        ) : (
+          <>
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+              />
+            </svg>
+            Katalog Yükle
+          </>
+        )}
         <input
           type="file"
           className="hidden"
+          disabled={uploadingCatalog}
           onChange={async (e) => addCatalog(e.target.files[0])}
         />
       </label>

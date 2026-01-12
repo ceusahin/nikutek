@@ -17,17 +17,62 @@ const UploadHeader = ({ title, fetchUrl, uploadUrl, deleteUrl }) => {
   const handleFileChange = (e) => {
     if (e.target.files.length === 0) return;
 
+    const file = e.target.files[0];
+    
+    // Dosya boyutu kontrolü (50MB limit)
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    if (file.size > maxSize) {
+      showError(`Dosya boyutu çok büyük! Maksimum dosya boyutu: 50MB. Seçilen dosya: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+      return;
+    }
+
     setLoading(true);
     const formData = new FormData();
-    formData.append("file", e.target.files[0]);
+    formData.append("file", file);
 
     axiosInstance
-      .post(uploadUrl, formData)
+      .post(uploadUrl, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        timeout: 300000, // 5 dakika timeout (büyük dosyalar için)
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const percentCompleted = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
+            console.log(`Yükleme ilerlemesi: ${percentCompleted}%`);
+          }
+        },
+      })
       .then((res) => {
         setImage(res.data);
         showSuccess(`${title} başarıyla yüklendi!`);
       })
-      .catch(() => showError(`${title} yüklenirken hata oluştu`))
+      .catch((e) => {
+        console.error("Yükleme hatası detayları:", {
+          message: e.message,
+          code: e.code,
+          status: e.response?.status,
+          statusText: e.response?.statusText,
+          data: e.response?.data,
+        });
+        
+        if (e.code === "ECONNABORTED" || e.message.includes("timeout")) {
+          showError(`${title} yükleme zaman aşımına uğradı. Lütfen tekrar deneyin.`);
+        } else if (e.code === "ERR_NETWORK" || e.response?.status === 0) {
+          showError(`Ağ hatası oluştu. İnternet bağlantınızı kontrol edin ve tekrar deneyin. Sunucuya bağlanılamıyor olabilir.`);
+        } else if (e.response?.status === 500) {
+          const errorMsg = e.response?.data?.message || e.response?.data?.error || "Sunucu hatası";
+          showError(`Sunucu hatası (500): ${errorMsg}. Dosya boyutu çok büyük olabilir veya sunucu geçici olarak kullanılamıyor. Lütfen daha küçük bir dosya deneyin veya daha sonra tekrar deneyin.`);
+        } else if (e.response?.status === 413) {
+          showError("Dosya boyutu çok büyük! Lütfen daha küçük bir dosya seçin.");
+        } else if (e.response?.status >= 400 && e.response?.status < 500) {
+          showError(`İstek hatası (${e.response?.status}): ${e.response?.data?.message || e.message}`);
+        } else {
+          showError(`${title} yüklenirken hata oluştu: ${e.response?.data?.message || e.response?.data?.error || e.message || "Bilinmeyen hata"}`);
+        }
+      })
       .finally(() => setLoading(false));
   };
 

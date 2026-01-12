@@ -41,6 +41,9 @@ const TechnologySettings = () => {
   const [contentType, setContentType] = useState("image"); // "image" veya "text"
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingCatalog, setUploadingCatalog] = useState(false);
+  const [deletingImage, setDeletingImage] = useState(false);
+  const [deletingCatalogIndex, setDeletingCatalogIndex] = useState(null);
   const [saving, setSaving] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -172,13 +175,36 @@ const TechnologySettings = () => {
   const handleFileUpload = async (e, type = "image") => {
     const file = e.target.files[0];
     if (!file) return;
-    setUploading(true);
+    
+    // Dosya boyutu kontrolü (50MB limit)
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    if (file.size > maxSize) {
+      alert(`Dosya boyutu çok büyük! Maksimum dosya boyutu: 50MB. Seçilen dosya: ${(file.size / 1024 / 1024).toFixed(2)}MB`);
+      return;
+    }
+
+    if (type === "image") {
+      setUploading(true);
+    } else {
+      setUploadingCatalog(true);
+    }
     const formData = new FormData();
     formData.append("file", file);
 
     try {
       const res = await axiosInstance.post("/technologies/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
+        timeout: 300000, // 5 dakika timeout (büyük dosyalar için)
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const percentCompleted = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
+            console.log(`Yükleme ilerlemesi: ${percentCompleted}%`);
+          }
+        },
       });
 
       if (type === "image") {
@@ -190,9 +216,34 @@ const TechnologySettings = () => {
         }));
       }
     } catch (e) {
-      console.error("Yükleme hatası:", e);
+      console.error("Yükleme hatası detayları:", {
+        message: e.message,
+        code: e.code,
+        status: e.response?.status,
+        statusText: e.response?.statusText,
+        data: e.response?.data,
+      });
+      
+      if (e.code === "ECONNABORTED" || e.message.includes("timeout")) {
+        alert("Dosya yükleme zaman aşımına uğradı. Lütfen daha küçük bir dosya deneyin veya tekrar deneyin.");
+      } else if (e.code === "ERR_NETWORK" || e.response?.status === 0) {
+        alert("Ağ hatası oluştu. İnternet bağlantınızı kontrol edin ve tekrar deneyin. Sunucuya bağlanılamıyor olabilir.");
+      } else if (e.response?.status === 500) {
+        const errorMsg = e.response?.data?.message || e.response?.data?.error || "Sunucu hatası";
+        alert(`Sunucu hatası (500): ${errorMsg}. Dosya boyutu çok büyük olabilir veya sunucu geçici olarak kullanılamıyor. Lütfen daha küçük bir dosya deneyin veya daha sonra tekrar deneyin.`);
+      } else if (e.response?.status === 413) {
+        alert("Dosya boyutu çok büyük! Lütfen daha küçük bir dosya seçin.");
+      } else if (e.response?.status >= 400 && e.response?.status < 500) {
+        alert(`İstek hatası (${e.response?.status}): ${e.response?.data?.message || e.message}`);
+      } else {
+        alert(`Dosya yüklenirken hata oluştu: ${e.response?.data?.message || e.response?.data?.error || e.message || "Bilinmeyen hata"}`);
+      }
     } finally {
-      setUploading(false);
+      if (type === "image") {
+        setUploading(false);
+      } else {
+        setUploadingCatalog(false);
+      }
     }
   };
 
@@ -954,12 +1005,25 @@ const TechnologySettings = () => {
                         />
                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
                           <button
-                            onClick={() =>
-                              setFormData((prev) => ({ ...prev, imageUrl: "" }))
-                            }
-                            className="text-white bg-red-500 hover:bg-red-600 px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium"
+                            onClick={async () => {
+                              setDeletingImage(true);
+                              try {
+                                setFormData((prev) => ({ ...prev, imageUrl: "" }));
+                              } finally {
+                                setDeletingImage(false);
+                              }
+                            }}
+                            disabled={deletingImage}
+                            className="text-white bg-red-500 hover:bg-red-600 disabled:bg-red-400 disabled:cursor-not-allowed px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium flex items-center gap-2"
                           >
-                            Kaldır
+                            {deletingImage ? (
+                              <>
+                                <Loader2 className="animate-spin" size={14} />
+                                Kaldırılıyor...
+                              </>
+                            ) : (
+                              "Kaldır"
+                            )}
                           </button>
                         </div>
                       </div>
@@ -1007,15 +1071,27 @@ const TechnologySettings = () => {
                       onChange={(e) => handleFileUpload(e, "catalog")}
                       className="hidden"
                       id="catalog-upload"
+                      disabled={uploadingCatalog}
                     />
                     <label
                       htmlFor="catalog-upload"
-                      className="flex items-center justify-center gap-2 md:gap-3 w-full p-3 md:p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-gray-400 dark:hover:border-gray-500 transition-colors bg-gray-50 dark:bg-gray-700/50"
+                      className={`flex items-center justify-center gap-2 md:gap-3 w-full p-3 md:p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg transition-colors bg-gray-50 dark:bg-gray-700/50 ${uploadingCatalog ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-gray-400 dark:hover:border-gray-500'}`}
                     >
-                      <File size={18} className="text-gray-400 md:w-5 md:h-5" />
-                      <span className="text-sm md:text-base text-gray-600 dark:text-gray-300 font-medium">
-                        Katalog Ekle
-                      </span>
+                      {uploadingCatalog ? (
+                        <>
+                          <Loader2 className="animate-spin text-gray-400 md:w-5 md:h-5" />
+                          <span className="text-sm md:text-base text-gray-600 dark:text-gray-300 font-medium">
+                            Yükleniyor...
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <File size={18} className="text-gray-400 md:w-5 md:h-5" />
+                          <span className="text-sm md:text-base text-gray-600 dark:text-gray-300 font-medium">
+                            Katalog Ekle
+                          </span>
+                        </>
+                      )}
                     </label>
                   </div>
 
@@ -1037,39 +1113,49 @@ const TechnologySettings = () => {
                         <button
                           onClick={async (e) => {
                             e.stopPropagation();
-                            // Eğer catalog'un ID'si varsa (backend'de kayıtlı), backend'den sil
-                            if (cat.id && formData.id) {
-                              try {
-                                console.log("Silinecek catalog ID:", cat.id);
-                                await axiosInstance.delete(`/technologies/catalog/${cat.id}`);
-                                showSuccess("Katalog başarıyla silindi!");
-                                // Backend'den silindikten sonra listeyi yenile
-                                await fetchTechnologies();
-                                // Teknolojiyi tekrar yükle
-                                const updatedTech = technologies.find(t => t.id === formData.id);
-                                if (updatedTech) {
-                                  const formattedData = formatTechnologyForForm(updatedTech);
-                                  setFormData(formattedData);
+                            setDeletingCatalogIndex(i);
+                            try {
+                              // Eğer catalog'un ID'si varsa (backend'de kayıtlı), backend'den sil
+                              if (cat.id && formData.id) {
+                                try {
+                                  console.log("Silinecek catalog ID:", cat.id);
+                                  await axiosInstance.delete(`/technologies/catalog/${cat.id}`);
+                                  showSuccess("Katalog başarıyla silindi!");
+                                  // Backend'den silindikten sonra listeyi yenile
+                                  await fetchTechnologies();
+                                  // Teknolojiyi tekrar yükle
+                                  const updatedTech = technologies.find(t => t.id === formData.id);
+                                  if (updatedTech) {
+                                    const formattedData = formatTechnologyForForm(updatedTech);
+                                    setFormData(formattedData);
+                                  }
+                                } catch (error) {
+                                  console.error("Katalog silme hatası:", error);
+                                  console.error("Error response:", error.response);
+                                  showError(error.response?.data?.message || "Katalog silinirken bir hata oluştu");
+                                  return;
                                 }
-                              } catch (error) {
-                                console.error("Katalog silme hatası:", error);
-                                console.error("Error response:", error.response);
-                                showError(error.response?.data?.message || "Katalog silinirken bir hata oluştu");
-                                return;
+                              } else {
+                                // ID yoksa sadece frontend'den kaldır
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  catalogs: prev.catalogs.filter(
+                                    (_, index) => index !== i
+                                  ),
+                                }));
                               }
-                            } else {
-                              // ID yoksa sadece frontend'den kaldır
-                              setFormData((prev) => ({
-                                ...prev,
-                                catalogs: prev.catalogs.filter(
-                                  (_, index) => index !== i
-                                ),
-                              }));
+                            } finally {
+                              setDeletingCatalogIndex(null);
                             }
                           }}
-                          className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 p-1 flex-shrink-0"
+                          disabled={deletingCatalogIndex === i}
+                          className="text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 disabled:opacity-50 disabled:cursor-not-allowed p-1 flex-shrink-0 flex items-center justify-center"
                         >
-                          <XCircle size={16} className="md:w-5 md:h-5" />
+                          {deletingCatalogIndex === i ? (
+                            <Loader2 className="animate-spin" size={16} />
+                          ) : (
+                            <XCircle size={16} className="md:w-5 md:h-5" />
+                          )}
                         </button>
                       </div>
                     ))}
